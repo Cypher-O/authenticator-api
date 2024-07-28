@@ -1,6 +1,7 @@
 // controllers/authController.js
 const express = require('express');
 const bcrypt = require('bcrypt');
+const crypto = require('crypto');
 const { generateToken, verifyToken } = require('../utils/authUtils');
 const QRCode = require('qrcode');
 
@@ -99,6 +100,93 @@ const login = (supabase) => {
   };
 };
 
+// const generateUser = (supabase) => {
+//   return async (req, res) => {
+//     const { authorization } = req.headers;
+//     const { unique_id, type} = req.body;
+
+//     if (!authorization) {
+//       return res.status(401).json({ code: 1, status: 'error', message: 'Authorization token required' });
+//     }
+
+//     const token = authorization.split(' ')[1];
+//     const decodedToken = verifyToken(token);
+
+//     if (!decodedToken) {
+//       return res.status(401).json({ code: 1, status: 'error', message: 'Invalid token' });
+//     }
+
+//     if (!unique_id || !type) {
+//       return res.status(400).json({ code: 1, status: 'error', message: 'Unique ID and type are required' });
+//     }
+
+//     try {
+//       const { data: existingUser, error: checkError } = await supabase
+//         .from('generated_users')
+//         .select('id, username, password')
+//         .eq('unique_id', unique_id)
+//         .single();
+
+//       if (checkError && checkError.code !== 'PGRST116') {
+//         console.error('Supabase error:', checkError);
+//         return res.status(500).json({ code: 1, status: 'error', message: 'Error checking user', error: checkError });
+//       }
+
+//       let user_type = 'New user';
+//       let username, password;
+
+//       if (existingUser) {
+//         user_type = 'Existing user';
+//         username = existingUser.username;
+//         password = existingUser.password;
+//       } else {
+//         username = Math.random().toString(36).substr(2, 10);
+//         password = Math.random().toString(36).substr(2, 8);
+
+//         const { error } = await supabase
+//           .from('generated_users')
+//           .insert([{ unique_id, type, username, password }]);
+
+//         if (error) {
+//           console.error('Supabase error:', error);
+//           throw error;
+//         }
+
+//         // Update the users table with the generated username
+//         const { error: updateError } = await supabase
+//           .from('users')
+//           .update({ generated_username: username })
+//           .eq('username', unique_id);
+
+//         if (updateError) {
+//           console.error('Supabase error:', updateError);
+//           throw updateError;
+//         }
+//       }
+
+//       const qrCodeData = JSON.stringify({ username, password });
+//       const qr_code = (await QRCode.toDataURL(qrCodeData, { width: 220, height: 220 })).replace('data:image/png;base64,', '');
+//       // const qr_code = (await QRCode.toDataURL(qrCodeData)).replace('data:image/png;base64,', '');
+
+//       res.status(200).json({
+//         code: 0,
+//         status: 'success',
+//         message: 'User generated successfully',
+//         data: {
+//           qr_code,
+//           username,
+//           password,
+//           user_type
+//         }
+//       });
+//     } catch (error) {
+//       console.error('Server error:', error);
+//       res.status(500).json({ code: 1, status: 'error', message: 'Server error', error });
+//     }
+//   };
+// };
+
+
 const generateUser = (supabase) => {
   return async (req, res) => {
     const { authorization } = req.headers;
@@ -115,11 +203,25 @@ const generateUser = (supabase) => {
       return res.status(401).json({ code: 1, status: 'error', message: 'Invalid token' });
     }
 
+    const userId = decodedToken.userId;
+
     if (!unique_id || !type) {
       return res.status(400).json({ code: 1, status: 'error', message: 'Unique ID and type are required' });
     }
 
     try {
+      // Fetch the authenticated user
+      const { data: authenticatedUser, error: authUserError } = await supabase
+        .from('users')
+        .select('username, generated_username')
+        .eq('id', userId)
+        .single();
+
+      if (authUserError) {
+        console.error('Supabase error:', authUserError);
+        return res.status(500).json({ code: 1, status: 'error', message: 'Error fetching authenticated user', error: authUserError });
+      }
+
       const { data: existingUser, error: checkError } = await supabase
         .from('generated_users')
         .select('id, username, password')
@@ -150,11 +252,27 @@ const generateUser = (supabase) => {
           console.error('Supabase error:', error);
           throw error;
         }
+
+        // Append the new generated username to the existing list
+        const currentGeneratedUsernames = authenticatedUser.generated_username || '';
+        const updatedGeneratedUsernames = currentGeneratedUsernames
+          ? `${currentGeneratedUsernames},${username}`
+          : username;
+
+        // Update the users table with the appended generated username
+        const { error: updateError } = await supabase
+          .from('users')
+          .update({ generated_username: updatedGeneratedUsernames })
+          .eq('id', userId);
+
+        if (updateError) {
+          console.error('Supabase error:', updateError);
+          throw updateError;
+        }
       }
 
       const qrCodeData = JSON.stringify({ username, password });
       const qr_code = (await QRCode.toDataURL(qrCodeData, { width: 220, height: 220 })).replace('data:image/png;base64,', '');
-      // const qr_code = (await QRCode.toDataURL(qrCodeData)).replace('data:image/png;base64,', '');
 
       res.status(200).json({
         code: 0,
@@ -174,4 +292,268 @@ const generateUser = (supabase) => {
   };
 };
 
-module.exports = { register, login, generateUser };
+const verifyUser = (supabase) => {
+  return async (req, res) => {
+    const { username, password } = req.body;
+
+    if (!username || !password) {
+      return res.status(400).json({ code: 1, status: 'error', message: 'Username and password are required' });
+    }
+
+    try {
+      // Verify username and password from generated_users table
+      const { data: generatedUser, error: userError } = await supabase
+        .from('generated_users')
+        .select('password')
+        .eq('username', username)
+        .single();
+
+      if (userError || !generatedUser) {
+        return res.status(401).json({ code: 1, status: 'error', message: 'Invalid username or password' });
+      }
+
+      const passwordsMatch = password === generatedUser.password;
+
+      if (!passwordsMatch) {
+        return res.status(401).json({ code: 1, status: 'error', message: 'Invalid username or password' });
+      }
+
+      // Fetch customer details from users table using the generated_username
+      const { data: customers, error: customerError } = await supabase
+        .from('users')
+        .select('customer_name, image, generated_username')
+        .filter('generated_username', 'ilike', `%${username}%`);
+
+      if (customerError) {
+        console.error('Supabase error:', customerError);
+        return res.status(500).json({ code: 1, status: 'error', message: 'Error fetching customer details', error: customerError });
+      }
+
+      if (customers.length === 0) {
+        return res.status(404).json({ code: 1, status: 'error', message: 'Customer details not found' });
+      }
+
+      // Find the exact match from the results
+      const customer = customers.find(c => 
+        c.generated_username.split(',').some(gen => gen.trim() === username)
+      );
+
+      if (!customer) {
+        return res.status(404).json({ code: 1, status: 'error', message: 'Exact customer match not found' });
+      }
+
+      // Generate OTP
+      const otp = crypto.randomInt(100000, 999999).toString();
+      const otpExpiresSeconds = 60;
+      const otpExpiresAt = new Date(new Date().getTime() + otpExpiresSeconds * 1000).toISOString();
+
+      // Update the OTP in the generated_users table
+      const { error: otpError } = await supabase
+        .from('generated_users')
+        .update({ otp, otp_expires_at: otpExpiresAt })
+        .eq('username', username);
+
+      if (otpError) {
+        console.error('Supabase error:', otpError);
+        return res.status(500).json({ code: 1, status: 'error', message: 'Error updating OTP', error: otpError });
+      }
+
+      // Return the response
+      res.status(200).json({
+        code: 0,
+        status: 'success',
+        message: 'Username and password verified',
+        data: {
+          username,
+          otp,
+          otp_expires_seconds: otpExpiresSeconds,
+          company_name: customer.customer_name,
+          customer_logo: customer.image
+        }
+      });
+    } catch (error) {
+      console.error('Server error:', error);
+      res.status(500).json({ code: 1, status: 'error', message: 'Server error', error });
+    }
+  };
+};
+
+
+// const generateUser = (supabase) => {
+//   return async (req, res) => {
+//     const { authorization } = req.headers;
+//     const { unique_id, type } = req.body;
+
+//     if (!authorization) {
+//       return res.status(401).json({ code: 1, status: 'error', message: 'Authorization token required' });
+//     }
+
+//     const token = authorization.split(' ')[1];
+//     const decodedToken = verifyToken(token);
+
+//     if (!decodedToken) {
+//       return res.status(401).json({ code: 1, status: 'error', message: 'Invalid token' });
+//     }
+
+//     // Extract the user ID from the decoded token
+//     const userId = decodedToken.userId;
+
+//     if (!unique_id || !type) {
+//       return res.status(400).json({ code: 1, status: 'error', message: 'Unique ID and type are required' });
+//     }
+
+//     try {
+//       // First, fetch the username of the authenticated user
+//       const { data: authenticatedUser, error: authUserError } = await supabase
+//         .from('users')
+//         .select('username')
+//         .eq('id', userId)
+//         .single();
+
+//       if (authUserError) {
+//         console.error('Supabase error:', authUserError);
+//         return res.status(500).json({ code: 1, status: 'error', message: 'Error fetching authenticated user', error: authUserError });
+//       }
+
+//       const authenticatedUsername = authenticatedUser.username;
+
+//       const { data: existingUser, error: checkError } = await supabase
+//         .from('generated_users')
+//         .select('id, username, password')
+//         .eq('unique_id', unique_id)
+//         .single();
+
+//       if (checkError && checkError.code !== 'PGRST116') {
+//         console.error('Supabase error:', checkError);
+//         return res.status(500).json({ code: 1, status: 'error', message: 'Error checking user', error: checkError });
+//       }
+
+//       let user_type = 'New user';
+//       let username, password;
+
+//       if (existingUser) {
+//         user_type = 'Existing user';
+//         username = existingUser.username;
+//         password = existingUser.password;
+//       } else {
+//         username = Math.random().toString(36).substr(2, 10);
+//         password = Math.random().toString(36).substr(2, 8);
+
+//         const { error } = await supabase
+//           .from('generated_users')
+//           .insert([{ unique_id, type, username, password }]);
+
+//         if (error) {
+//           console.error('Supabase error:', error);
+//           throw error;
+//         }
+
+//         // Update the users table with the generated username
+//         const { error: updateError } = await supabase
+//           .from('users')
+//           .update({ generated_username: username })
+//           .eq('username', authenticatedUsername);
+
+//         if (updateError) {
+//           console.error('Supabase error:', updateError);
+//           throw updateError;
+//         }
+//       }
+
+//       const qrCodeData = JSON.stringify({ username, password });
+//       const qr_code = (await QRCode.toDataURL(qrCodeData, { width: 220, height: 220 })).replace('data:image/png;base64,', '');
+
+//       res.status(200).json({
+//         code: 0,
+//         status: 'success',
+//         message: 'User generated successfully',
+//         data: {
+//           qr_code,
+//           username,
+//           password,
+//           user_type
+//         }
+//       });
+//     } catch (error) {
+//       console.error('Server error:', error);
+//       res.status(500).json({ code: 1, status: 'error', message: 'Server error', error });
+//     }
+//   };
+// };
+
+// const verifyUser = (supabase) => {
+//   return async (req, res) => {
+//     const { username, password } = req.body;
+
+//     if (!username || !password) {
+//       return res.status(400).json({ code: 1, status: 'error', message: 'Username and password are required' });
+//     }
+
+//     try {
+//       // Verify username and password from generated_users table
+//       const { data: generatedUser, error: userError } = await supabase
+//         .from('generated_users')
+//         .select('password')
+//         .eq('username', username)
+//         .single();
+
+//       if (userError || !generatedUser) {
+//         return res.status(401).json({ code: 1, status: 'error', message: 'Invalid username or password' });
+//       }
+
+//       const passwordsMatch = password === generatedUser.password;
+
+//       if (!passwordsMatch) {
+//         return res.status(401).json({ code: 1, status: 'error', message: 'Invalid username or password' });
+//       }
+
+//       // Fetch customer details from users table using the generated_username
+//       const { data: customer, error: customerError } = await supabase
+//         .from('users')
+//         .select('customer_name, image')
+//         .eq('generated_username', username)
+//         .single();
+
+//       if (customerError || !customer) {
+//         return res.status(404).json({ code: 1, status: 'error', message: 'Customer details not found' });
+//       }
+
+//       // Generate OTP
+//       const otp = crypto.randomInt(100000, 999999).toString();
+//       const otpExpiresSeconds = 60;
+//       const otpExpiresAt = new Date(new Date().getTime() + otpExpiresSeconds * 1000).toISOString();
+
+//       // Update the OTP in the generated_users table
+//       const { error: otpError } = await supabase
+//         .from('generated_users')
+//         .update({ otp, otp_expires_at: otpExpiresAt })
+//         .eq('username', username);
+
+//       if (otpError) {
+//         console.error('Supabase error:', otpError);
+//         return res.status(500).json({ code: 1, status: 'error', message: 'Error updating OTP', error: otpError });
+//       }
+
+//       // Return the response
+//       res.status(200).json({
+//         code: 0,
+//         status: 'success',
+//         message: 'Username and password verified',
+//         data: {
+//           username,
+//           otp,
+//           otp_expires_seconds: otpExpiresSeconds,
+//           company_name: customer.customer_name,
+//           customer_logo: customer.image
+//         }
+//       });
+//     } catch (error) {
+//       console.error('Server error:', error);
+//       res.status(500).json({ code: 1, status: 'error', message: 'Server error', error });
+//     }
+//   };
+// };
+
+
+
+module.exports = { register, login, generateUser, verifyUser };
