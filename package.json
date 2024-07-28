@@ -6,7 +6,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "npm install",
-    "serve": "node setupDatabase.js && nodemon server.js",
+    "serve": "node server.js",
     "dev": "nodemon server.js"
   },
   "keywords": [],
