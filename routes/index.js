@@ -1,8 +1,11 @@
 const express = require('express');
-const authController = require('../controllers/authControllers');
+const { register, login, generateUser } = require('../controllers/authControllers');
 
 module.exports = (supabase) => {
   const router = express.Router();
-  router.use('/register', authController(supabase));
+
+  router.post('/register', register(supabase));
+  router.post('/login', login(supabase));
+  router.post('/generate-user', generateUser(supabase));
   return router;
 };
