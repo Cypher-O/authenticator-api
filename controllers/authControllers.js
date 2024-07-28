@@ -378,6 +378,60 @@ const verifyUser = (supabase) => {
   };
 };
 
+const generateOtp = (supabase) => {
+  return async (req, res) => {
+    const { usernames } = req.body;
+
+    if (!usernames || !Array.isArray(usernames) || usernames.length === 0) {
+      return res.status(400).json({ code: 1, status: 'error', message: 'Valid usernames array is required' });
+    }
+
+    try {
+      const otpExpiresSeconds = 60;
+      const results = [];
+
+      for (const username of usernames) {
+        // Generate OTP
+        const otp = crypto.randomInt(100000, 999999).toString();
+        const otpExpiresAt = new Date(new Date().getTime() + otpExpiresSeconds * 1000).toISOString();
+
+        // Update the OTP in the generated_users table
+        const { error: otpError } = await supabase
+          .from('generated_users')
+          .update({ otp, otp_expires_at: otpExpiresAt })
+          .eq('username', username);
+
+        if (otpError) {
+          console.error('Supabase error for username', username, ':', otpError);
+          // If there's an error, we'll skip this username and continue with others
+          continue;
+        }
+
+        results.push({
+          username,
+          otp,
+          otp_expires_seconds: otpExpiresSeconds
+        });
+      }
+
+      if (results.length === 0) {
+        return res.status(404).json({ code: 1, status: 'error', message: 'No valid usernames found or OTP generation failed for all usernames' });
+      }
+
+      // Return the response
+      res.status(200).json({
+        code: 0,
+        status: 'success',
+        message: 'OTP Token generated successfully',
+        data: results
+      });
+    } catch (error) {
+      console.error('Server error:', error);
+      res.status(500).json({ code: 1, status: 'error', message: 'Server error', error });
+    }
+  };
+};
+
 
 // const generateUser = (supabase) => {
 //   return async (req, res) => {
@@ -556,4 +610,4 @@ const verifyUser = (supabase) => {
 
 
 
-module.exports = { register, login, generateUser, verifyUser };
+module.exports = { register, login, generateUser, verifyUser, generateOtp };
