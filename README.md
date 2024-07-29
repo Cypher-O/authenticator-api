@@ -8,7 +8,7 @@ The application can create & login customers, generate & verify users, generate 
 
 ### TABLES
 
-# Create users table using this query in your SQL editor
+#### Create users table using this query in your SQL editor
 
 CREATE TABLE IF NOT EXISTS public.users (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS public.users (
   generated_username TEXT
 );
 
-# Create generated users table using query in your SQL editor
+#### Create generated users table using query in your SQL editor
 
 CREATE TABLE IF NOT EXISTS public.generated_users (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
