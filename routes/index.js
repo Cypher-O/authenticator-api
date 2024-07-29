@@ -1,5 +1,5 @@
 const express = require('express');
-const { register, login, generateUser, verifyUser, generateOtp, verifyOtp } = require('../controllers/authControllers');
+const { register, login, generateUser, verifyUser, generateOtp, verifyOtp } = require('../controllers/authController');
 
 module.exports = (supabase) => {
   const router = express.Router();
