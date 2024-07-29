@@ -3,6 +3,10 @@ const bodyParser = require('body-parser');
 const { createClient } = require('@supabase/supabase-js');
 require('dotenv').config();
 const initializeDatabase = require('./setupDatabase');
+var cors = require('cors');
+const errorHandler = require('./middleware/errorHandler');
+const notFound = require('./middleware/notFound');
+const loggingMiddleware = require('./middleware/loggingMiddleware');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -13,6 +17,8 @@ const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY
 
 // Middleware
 app.use(bodyParser.json({ limit: '10mb' }));
+
+app.use(cors())
 
 // app.get('/test-db', async (req, res) => {
 //   try {
@@ -26,9 +32,16 @@ app.use(bodyParser.json({ limit: '10mb' }));
 //   }
 // });
 
+app.use(express.static('public'));
+
 // Routes
 const authRoutes = require('./routes/index')(supabase);
 app.use('/api', authRoutes);
+
+// Error handling middleware
+app.use(notFound);
+app.use(errorHandler);
+app.use(loggingMiddleware);
 
 // // Initialize the database schema
 // initializeDatabase(supabase)
