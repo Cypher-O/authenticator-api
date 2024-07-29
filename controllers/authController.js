@@ -379,4 +379,54 @@ const verifyOtp = (supabase) => {
   };
 };
 
-module.exports = { register, login, generateUser, verifyUser, generateOtp, verifyOtp };
+
+const getUserData = (supabase) => async (req, res) => {
+  const { userId } = req.params;
+
+  if (!userId) {
+    return res.status(400).json({ code: 1, status: 'error', message: 'User ID is required' });
+  }
+
+  try {
+    // Fetch user data from the users table
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', userId)
+      .single();
+
+    if (userError || !user) {
+      console.error('Supabase error:', userError);
+      return res.status(500).json({ code: 1, status: 'error', message: 'Error fetching user data', error: userError });
+    }
+
+    // Split the generated_username string into an array
+    const generatedUsernames = user.generated_username ? user.generated_username.split(',') : [];
+
+    // Fetch generated users data from the generated_users table
+    const { data: generatedUsers, error: generatedUsersError } = await supabase
+      .from('generated_users')
+      .select('*')
+      .in('username', generatedUsernames);
+
+    if (generatedUsersError) {
+      console.error('Supabase error:', generatedUsersError);
+      return res.status(500).json({ code: 1, status: 'error', message: 'Error fetching generated users data', error: generatedUsersError });
+    }
+
+    res.status(200).json({
+      code: 0,
+      status: 'success',
+      message: 'User data fetched successfully',
+      data: {
+        user,
+        generatedUsers,
+      },
+    });
+  } catch (error) {
+    console.error('Server error:', error);
+    res.status(500).json({ code: 1, status: 'error', message: 'Server error', error });
+  }
+};
+
+module.exports = { register, login, generateUser, verifyUser, generateOtp, verifyOtp, getUserData };
