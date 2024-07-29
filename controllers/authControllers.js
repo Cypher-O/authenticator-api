@@ -345,4 +345,38 @@ const generateOtp = (supabase) => {
   };
 };
 
-module.exports = { register, login, generateUser, verifyUser, generateOtp };
+const verifyOtp = (supabase) => {
+  return async (req, res) => {
+    const { unique_id, token } = req.body;
+
+    if (!unique_id || !token) {
+      return res.status(400).json({ code: 1, status: 'error', message: 'Unique ID and token are required' });
+    }
+
+    try {
+      // Verify the unique_id and token from generated_users table
+      const { data: generatedUser, error: genUserError } = await supabase
+        .from('generated_users')
+        .select('id')
+        .eq('unique_id', unique_id)
+        .eq('otp', token)
+        .single();
+
+      if (genUserError || !generatedUser) {
+        return res.status(401).json({ code: 1, status: 'error', message: 'Invalid unique ID or expired token' });
+      }
+
+      res.status(200).json({
+        code: 0,
+        status: 'success',
+        message: 'Token is valid.',
+        data: []
+      });
+    } catch (error) {
+      console.error('Server error:', error);
+      res.status(500).json({ code: 1, status: 'error', message: 'Server error', error });
+    }
+  };
+};
+
+module.exports = { register, login, generateUser, verifyUser, generateOtp, verifyOtp };
