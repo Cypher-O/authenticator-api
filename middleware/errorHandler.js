@@ -1,3 +1,4 @@
+//middleware/errorHandler.js
 const path = require('path');
 
 const errorHandler = (err, req, res, next) => {
