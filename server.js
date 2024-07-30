@@ -1,39 +1,7 @@
-// const express = require('express');
-// const bodyParser = require('body-parser');
-// require('dotenv').config();
-// var cors = require('cors');
-// const authRoutes = require('./routes/authRoutes');
-// const errorHandler = require('./middleware/errorHandler');
-// const notFound = require('./middleware/notFound');
-// const loggingMiddleware = require('./middleware/loggingMiddleware');
-
-// const app = express();
-// const port = process.env.PORT || 3000;
-
-// app.use(cors())
-
-// app.use(express.static('public'));
-
-// // Routes
-// app.use(bodyParser.json());
-// app.use('/api/auth', authRoutes);
-
-// // Error handling middleware
-// app.use(notFound);
-// app.use(errorHandler);
-// app.use(loggingMiddleware);
-
-// // Start server
-// app.listen(port, () => {
-//   console.log(`Server running on port ${port}`);
-// });
-
-
 const express = require('express');
 const bodyParser = require('body-parser');
 require('dotenv').config();
 var cors = require('cors');
-const { runMigrations } = require('node-pg-migrate');
 const authRoutes = require('./routes/authRoutes');
 const errorHandler = require('./middleware/errorHandler');
 const notFound = require('./middleware/notFound');
@@ -42,38 +10,70 @@ const loggingMiddleware = require('./middleware/loggingMiddleware');
 const app = express();
 const port = process.env.PORT || 3000;
 
-app.use(cors());
+app.use(cors())
+
 app.use(express.static('public'));
+
+// Routes
 app.use(bodyParser.json());
+app.use('/api/auth', authRoutes);
 
-// Run migrations before starting the server
-const startServer = async () => {
-  try {
-    const encodedUrl = encodeURIComponent(process.env.DATABASE_URL);
-    await runMigrations({
-      databaseUrl: encodedUrl,
-      direction: 'up',
-      migrationsTable: 'pgmigrations',
-      dir: 'migrations',
-    });
-    console.log('Migrations completed successfully');
+// Error handling middleware
+app.use(notFound);
+app.use(errorHandler);
+app.use(loggingMiddleware);
 
-    // Routes
-    app.use('/api/auth', authRoutes);
+// Start server
+app.listen(port, () => {
+  console.log(`Server running on port ${port}`);
+});
 
-    // Error handling middleware
-    app.use(notFound);
-    app.use(errorHandler);
-    app.use(loggingMiddleware);
 
-    // Start server
-    app.listen(port, () => {
-      console.log(`Server running on port ${port}`);
-    });
-  } catch (error) {
-    console.error('Error running migrations:', error);
-    process.exit(1);
-  }
-};
+// const express = require('express');
+// const bodyParser = require('body-parser');
+// require('dotenv').config();
+// var cors = require('cors');
+// const { runMigrations } = require('node-pg-migrate');
+// const authRoutes = require('./routes/authRoutes');
+// const errorHandler = require('./middleware/errorHandler');
+// const notFound = require('./middleware/notFound');
+// const loggingMiddleware = require('./middleware/loggingMiddleware');
 
-startServer();
+// const app = express();
+// const port = process.env.PORT || 3000;
+
+// app.use(cors());
+// app.use(express.static('public'));
+// app.use(bodyParser.json());
+
+// // Run migrations before starting the server
+// const startServer = async () => {
+//   try {
+//     const encodedUrl = encodeURIComponent(process.env.DATABASE_URL);
+//     await runMigrations({
+//       databaseUrl: encodedUrl,
+//       direction: 'up',
+//       migrationsTable: 'pgmigrations',
+//       dir: 'migrations',
+//     });
+//     console.log('Migrations completed successfully');
+
+//     // Routes
+//     app.use('/api/auth', authRoutes);
+
+//     // Error handling middleware
+//     app.use(notFound);
+//     app.use(errorHandler);
+//     app.use(loggingMiddleware);
+
+//     // Start server
+//     app.listen(port, () => {
+//       console.log(`Server running on port ${port}`);
+//     });
+//   } catch (error) {
+//     console.error('Error running migrations:', error);
+//     process.exit(1);
+//   }
+// };
+
+// startServer();
