@@ -49,15 +49,9 @@ app.use(bodyParser.json());
 // Run migrations before starting the server
 const startServer = async () => {
   try {
+    const encodedUrl = encodeURIComponent(process.env.DATABASE_URL);
     await runMigrations({
-      databaseUrl: {
-        host: process.env.SUPABASE_DB_HOST,
-        port: process.env.SUPABASE_DB_PORT,
-        database: process.env.SUPABASE_DB_NAME,
-        user: process.env.SUPABASE_DB_USER,
-        password: process.env.SUPABASE_DB_PASSWORD,
-        ssl: { rejectUnauthorized: false },
-      },
+      databaseUrl: encodedUrl,
       direction: 'up',
       migrationsTable: 'pgmigrations',
       dir: 'migrations',
