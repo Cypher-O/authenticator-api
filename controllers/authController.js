@@ -4,11 +4,12 @@ const bcrypt = require('bcrypt');
 const crypto = require('crypto');
 const { generateToken, verifyToken } = require('../utils/authUtils');
 const QRCode = require('qrcode');
+const asyncHandler = require('express-async-handler');
 
 const saltRounds = 10;
 
 const register = (supabase) => {
-  return async (req, res) => {
+  return asyncHandler( async (req, res) => {
     const { customer_name, username, password, image } = req.body;
 
     if (!customer_name || !username || !password || !image) {
@@ -56,11 +57,11 @@ const register = (supabase) => {
       console.error('Server error:', error);
       res.status(500).json({ code: 1, status: 'error', message: 'Server error', error });
     }
-  };
+  });
 };
 
 const login = (supabase) => {
-  return async (req, res) => {
+  return asyncHandler (async (req, res) => {
     const { username, password } = req.body;
 
     if (!username || !password) {
@@ -97,11 +98,11 @@ const login = (supabase) => {
       console.error('Server error:', error);
       res.status(500).json({ code: 1, status: 'error', message: 'Server error', error });
     }
-  };
+  });
 };
 
 const generateUser = (supabase) => {
-  return async (req, res) => {
+  return asyncHandler (async (req, res) => {
     const { authorization } = req.headers;
     const { unique_id, type } = req.body;
 
@@ -202,11 +203,11 @@ const generateUser = (supabase) => {
       console.error('Server error:', error);
       res.status(500).json({ code: 1, status: 'error', message: 'Server error', error });
     }
-  };
+  });
 };
 
 const verifyUser = (supabase) => {
-  return async (req, res) => {
+  return asyncHandler (async (req, res) => {
     const { username, password } = req.body;
 
     if (!username || !password) {
@@ -288,11 +289,11 @@ const verifyUser = (supabase) => {
       console.error('Server error:', error);
       res.status(500).json({ code: 1, status: 'error', message: 'Server error', error });
     }
-  };
+  });
 };
 
 const generateOtp = (supabase) => {
-  return async (req, res) => {
+  return asyncHandler (async (req, res) => {
     const { usernames } = req.body;
 
     if (!usernames || !Array.isArray(usernames) || usernames.length === 0) {
@@ -342,11 +343,11 @@ const generateOtp = (supabase) => {
       console.error('Server error:', error);
       res.status(500).json({ code: 1, status: 'error', message: 'Server error', error });
     }
-  };
+  });
 };
 
 const verifyOtp = (supabase) => {
-  return async (req, res) => {
+  return asyncHandler (async (req, res) => {
     const { unique_id, token } = req.body;
 
     if (!unique_id || !token) {
@@ -376,11 +377,11 @@ const verifyOtp = (supabase) => {
       console.error('Server error:', error);
       res.status(500).json({ code: 1, status: 'error', message: 'Server error', error });
     }
-  };
+  });
 };
 
 
-const getUserData = (supabase) => async (req, res) => {
+const getUserData = (supabase) => asyncHandler (async (req, res) => {
   const { userId } = req.params;
 
   if (!userId) {
@@ -427,6 +428,6 @@ const getUserData = (supabase) => async (req, res) => {
     console.error('Server error:', error);
     res.status(500).json({ code: 1, status: 'error', message: 'Server error', error });
   }
-};
+});
 
 module.exports = { register, login, generateUser, verifyUser, generateOtp, verifyOtp, getUserData };
