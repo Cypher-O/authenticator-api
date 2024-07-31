@@ -15,7 +15,11 @@
     "dev": "nodemon server.js"
   },
   "keywords": [],
-  "author": "",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Cypher-O/authenticator-api.git"
+  },
+  "author": "Olumide Awodeji",
   "license": "ISC",
   "dependencies": {
     "@supabase/supabase-js": "^2.44.4",
