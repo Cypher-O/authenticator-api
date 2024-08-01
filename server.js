@@ -20,8 +20,16 @@ app.use(express.static('public'));
 // Load the YAML file
 const swaggerDocument = YAML.load(path.join(__dirname, 'swagger.yaml'));
 
-// Serve Swagger documentation
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+// Serve custom CSS
+app.use('/swagger-ui.css', express.static(path.join(__dirname, 'custom.css')));
+
+// Serve Swagger documentation with custom CSS
+const swaggerOptions = {
+  customCssUrl: '/swagger-ui.css',
+  customSiteTitle: "Authenticator API Docs"
+};
+
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument, swaggerOptions));
 
 // Routes
 app.use(bodyParser.json());

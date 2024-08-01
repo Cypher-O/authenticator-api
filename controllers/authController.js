@@ -8,19 +8,73 @@ const asyncHandler = require('express-async-handler');
 
 const saltRounds = 10;
 
+// const register = (supabase) => {
+//   return asyncHandler( async (req, res) => {
+//     const { customer_name, username, password, image } = req.body;
+
+//     if (!customer_name || !username || !password || !image) {
+//       return res.status(400).json({ code: 1, status: 'error', message: 'All fields are required' });
+//     }
+
+//     try {
+//       const { data: existingUser, error: checkError } = await supabase
+//         .from('users')
+//         .select('username')
+//         .eq('username', username);
+
+//       if (checkError) {
+//         console.error('Supabase error:', checkError);
+//         return res.status(500).json({ code: 1, status: 'error', message: 'Error checking username', error: checkError });
+//       }
+
+//       if (existingUser.length > 0) {
+//         return res.status(400).json({ code: 1, status: 'error', message: 'Username already exists' });
+//       }
+
+//       const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+//       const { data, error } = await supabase
+//         .from('users')
+//         .insert([{ customer_name, username, password: hashedPassword, image }])
+//         .select();
+
+//       if (error) {
+//         console.error('Supabase error:', error);
+//         throw error;
+//       }
+
+//       const userId = data[0].id;
+//       const token = generateToken(userId);
+
+//       res.status(201).json({
+//         code: 0,
+//         status: 'success',
+//         message: 'User registered successfully',
+//         data,
+//         token
+//       });
+//     } catch (error) {
+//       console.error('Server error:', error);
+//       res.status(500).json({ code: 1, status: 'error', message: 'Server error', error });
+//     }
+//   });
+// };
+
 const register = (supabase) => {
-  return asyncHandler( async (req, res) => {
+  return asyncHandler(async (req, res) => {
     const { customer_name, username, password, image } = req.body;
 
     if (!customer_name || !username || !password || !image) {
       return res.status(400).json({ code: 1, status: 'error', message: 'All fields are required' });
     }
 
+    const lowerCaseUsername = username.toLowerCase();
+
     try {
       const { data: existingUser, error: checkError } = await supabase
         .from('users')
         .select('username')
-        .eq('username', username);
+        .eq('username', lowerCaseUsername);
 
       if (checkError) {
         console.error('Supabase error:', checkError);
@@ -35,7 +89,7 @@ const register = (supabase) => {
 
       const { data, error } = await supabase
         .from('users')
-        .insert([{ customer_name, username, password: hashedPassword, image }])
+        .insert([{ customer_name, username: lowerCaseUsername, password: hashedPassword, image }])
         .select();
 
       if (error) {
@@ -60,19 +114,63 @@ const register = (supabase) => {
   });
 };
 
+
+// const login = (supabase) => {
+//   return asyncHandler (async (req, res) => {
+//     const { username, password } = req.body;
+
+//     if (!username || !password) {
+//       return res.status(400).json({ code: 1, status: 'error', message: 'Username and password are required' });
+//     }
+
+//     try {
+//       const { data: user, error } = await supabase
+//         .from('users')
+//         .select('*')
+//         .eq('username', username)
+//         .single();
+
+//       if (error || !user) {
+//         console.error('Supabase error or user not found:', error);
+//         return res.status(400).json({ code: 1, status: 'error', message: 'Invalid username or password' });
+//       }
+
+//       const isPasswordValid = await bcrypt.compare(password, user.password);
+
+//       if (!isPasswordValid) {
+//         return res.status(400).json({ code: 1, status: 'error', message: 'Invalid username or password' });
+//       }
+
+//       const token = generateToken(user.id);
+
+//       res.status(200).json({
+//         code: 0,
+//         status: 'success',
+//         message: 'Login successful.',
+//         data: { token }
+//       });
+//     } catch (error) {
+//       console.error('Server error:', error);
+//       res.status(500).json({ code: 1, status: 'error', message: 'Server error', error });
+//     }
+//   });
+// };
+
 const login = (supabase) => {
-  return asyncHandler (async (req, res) => {
+  return asyncHandler(async (req, res) => {
     const { username, password } = req.body;
 
     if (!username || !password) {
       return res.status(400).json({ code: 1, status: 'error', message: 'Username and password are required' });
     }
 
+    const lowerCaseUsername = username.toLowerCase();
+
     try {
       const { data: user, error } = await supabase
         .from('users')
         .select('*')
-        .eq('username', username)
+        .eq('username', lowerCaseUsername)
         .single();
 
       if (error || !user) {
@@ -100,6 +198,7 @@ const login = (supabase) => {
     }
   });
 };
+
 
 const generateUser = (supabase) => {
   return asyncHandler (async (req, res) => {
